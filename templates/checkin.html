@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Check in{% endblock %}
+{% block content %}
+<div class="card" style="max-width:760px;margin:0 auto">
+  <h1>Check in</h1>
+  <p class="muted">Tap the service you need, tell us your name, and you'll get a queue number.</p>
+  <form method="post">
+    {{ csrf() }}
+    <div class="service-grid" role="radiogroup" aria-label="Service">
+      {% for s in services %}
+        <label class="service-option">
+          <input type="radio" name="service_id" value="{{ s.id }}" {{ 'checked' if form.get('service_id') == s.id|string }} required>
+          <span><span class="ico" aria-hidden="true">{{ s.icon }}</span>{{ s.name }}<span class="price">{{ s.unit_price|money }} each</span></span>
+        </label>
+      {% endfor %}
+    </div>
+    <div class="row">
+      <div class="field"><label for="name">Your name</label>
+        <input type="text" id="name" name="name" value="{{ form.get('name', '') }}" autocomplete="name" required></div>
+      <div class="field"><label for="phone">Phone number <span class="hint">(optional)</span></label>
+        <input type="tel" id="phone" name="phone" value="{{ form.get('phone', '') }}" autocomplete="tel" inputmode="tel"></div>
+    </div>
+    <div class="field"><label for="notes">Anything we should know? <span class="hint">(optional)</span></label>
+      <input type="text" id="notes" name="notes" value="{{ form.get('notes', '') }}" placeholder="e.g. 20 copies, double-sided"></div>
+    <button class="btn btn-primary btn-lg btn-block">Join the queue</button>
+  </form>
+</div>
+{% endblock %}

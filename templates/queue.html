@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_pill, pay_pill, csrf %}
+{% block title %}Queue{% endblock %}
+{% block head %}{% if tab == 'queue' %}<meta http-equiv="refresh" content="30">{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Today's queue</h1>
+    <p class="muted" style="margin:0">Updates every 30 seconds. Click an order to open it.</p>
+  </div>
+  <a class="btn btn-primary btn-lg" href="{{ url_for('order_new') }}">+ New order</a>
+</div>
+
+{% if stale or ready_unpaid %}
+<div class="alert alert-warning" role="alert">
+  {% if stale %}
+    <strong>⏰ {{ stale|length }} {{ 'order hasn\'t' if stale|length == 1 else 'orders haven\'t' }} been updated in {{ STALE_MINUTES }}+ minutes:</strong>
+    {% for o in stale %}<a href="{{ url_for('order_detail', order_id=o.id) }}">{{ o.queue_no|qno }} ({{ o.customer_name }})</a>{{ ', ' if not loop.last }}{% endfor %}
+    {% if ready_unpaid %}<br>{% endif %}
+  {% endif %}
+  {% if ready_unpaid %}
+    <strong>💰 Ready but not paid yet:</strong>
+    {% for o in ready_unpaid %}<a href="{{ url_for('order_detail', order_id=o.id) }}">{{ o.queue_no|qno }} ({{ balance(o)|money }})</a>{{ ', ' if not loop.last }}{% endfor %}
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="tabs">
+  <a href="{{ url_for('queue') }}" class="{{ 'active' if tab == 'queue' }}">Queue <span class="count">{{ counts['Waiting'] + counts['In Progress'] + counts['Ready'] }}</span></a>
+  <a href="{{ url_for('queue', tab='completed') }}" class="{{ 'active' if tab == 'completed' }}">Completed today <span class="count">{{ counts['Completed'] }}</span></a>
+  <a href="{{ url_for('orders') }}">All orders</a>
+</div>
+
+{% if tab == 'queue' %}
+<div class="kpis">
+  <div class="card kpi"><div class="label">Waiting</div><div class="value">{{ counts['Waiting'] }}</div></div>
+  <div class="card kpi"><div class="label">In progress</div><div class="value">{{ counts['In Progress'] }}</div></div>
+  <div class="card kpi"><div class="label">Ready for collection</div><div class="value">{{ counts['Ready'] }}</div></div>
+  <div class="card kpi"><div class="label">Completed today</div><div class="value">{{ counts['Completed'] }}</div></div>
+</div>
+{% endif %}
+
+<div class="card">
+  {% if orders %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>No.</th><th>Customer</th><th>Service</th><th class="right hide-sm">Qty</th>
+      <th>Payment</th><th>Status</th><th class="hide-sm">{{ 'Waiting' if tab == 'queue' else 'Finished' }}</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for o in orders %}
+      {% set is_stale = o.status in ('Waiting', 'In Progress') and minutes_since(o.updated_at) >= STALE_MINUTES %}
+      <tr class="clickable{{ ' stale' if is_stale }}" onclick="if(!event.target.closest('form,a'))location='{{ url_for('order_detail', order_id=o.id) }}'">
+        <td class="qno">{{ o.queue_no|qno }}{% if o.queue_date != today_str %}<div class="small muted">{{ o.queue_date }}</div>{% endif %}</td>
+        <td><a href="{{ url_for('order_detail', order_id=o.id) }}">{{ o.customer_name }}</a>
+          {% if o.source == 'Check-in' %}<div class="small muted">Self check-in</div>{% endif %}</td>
+        <td>{{ o.service_icon }} {{ o.service_name }}{% if o.notes %}<div class="small muted">{{ o.notes }}</div>{% endif %}</td>
+        <td class="right hide-sm">{{ o.quantity }}</td>
+        <td>{{ pay_pill(o) }}</td>
+        <td>{{ status_pill(o.status) }}</td>
+        <td class="hide-sm small muted nowrap">
+          {% if tab == 'queue' %}{{ minutes_since(o.created_at) }} min{% if is_stale %} ⏰{% endif %}
+          {% else %}{{ (o.completed_at or o.cancelled_at)|hm }}{% endif %}
+        </td>
+        <td class="right">
+          {% if o.status in ('Waiting', 'In Progress', 'Ready') %}
+            {% set nxt = {'Waiting': ('In Progress', 'Start'), 'In Progress': ('Ready', 'Mark ready'), 'Ready': ('Completed', 'Complete')}[o.status] %}
+            <form method="post" action="{{ url_for('order_status', order_id=o.id) }}" class="inline-form">
+              {{ csrf() }}<input type="hidden" name="status" value="{{ nxt[0] }}"><input type="hidden" name="back" value="queue">
+              <button class="btn btn-sm {{ 'btn-success' if nxt[0] == 'Completed' else 'btn-primary' }}">{{ nxt[1] }}</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <div class="empty">{{ 'No customers in the queue right now. 🎉' if tab == 'queue' else 'Nothing completed yet today.' }}</div>
+  {% endif %}
+</div>
+{% endblock %}

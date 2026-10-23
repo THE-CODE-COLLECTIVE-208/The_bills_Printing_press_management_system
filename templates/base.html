@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Printing Shop{% endblock %} · Printing Shop</title>
+  <link rel="styles.css" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <a class="brand" href="{{ url_for('home') }}"><span aria-hidden="true">🖨️</span> Printing Shop</a>
+      <nav class="nav">
+        {% set ep = request.endpoint %}
+        {% if user %}
+          <a href="{{ url_for('queue') }}" class="{{ 'active' if ep == 'queue' }}">Queue</a>
+          <a href="{{ url_for('order_new') }}" class="{{ 'active' if ep == 'order_new' }}">+ New order</a>
+          <a href="{{ url_for('orders') }}" class="{{ 'active' if ep in ('orders', 'order_detail') }}">Orders &amp; search</a>
+          {% if user.role == 'manager' %}
+            <a href="{{ url_for('dashboard') }}" class="{{ 'active' if ep == 'dashboard' }}">Dashboard</a>
+            <a href="{{ url_for('services') }}" class="{{ 'active' if ep == 'services' }}">Services</a>
+            <a href="{{ url_for('staff') }}" class="{{ 'active' if ep == 'staff' }}">Staff</a>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('checkin') }}" class="{{ 'active' if ep in ('checkin', 'ticket') }}">Check in</a>
+          <a href="{{ url_for('track_lookup') }}" class="{{ 'active' if ep in ('track', 'track_lookup') }}">Track order</a>
+          <a href="{{ url_for('display') }}" class="{{ 'active' if ep == 'display' }}">Queue board</a>
+        {% endif %}
+      </nav>
+      <div class="who">
+        {% if user %}
+          <span>{{ user.full_name }} · {{ user.role|capitalize }}</span>
+          <form method="post" action="{{ url_for('logout') }}" class="inline-form">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="btn btn-sm">Log out</button>
+          </form>
+        {% else %}
+          <a class="btn btn-sm" href="{{ url_for('login') }}">Staff login</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes" role="status">
+          {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Track order{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Track my order</h1>
+  <p class="muted">Enter the tracking code printed on your ticket.</p>
+  <form method="post">
+    {{ csrf() }}
+    <div class="field"><label for="code">Tracking code</label>
+      <input type="text" id="code" name="code" maxlength="6" autocapitalize="characters" autocomplete="off"
+             style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.15em;text-transform:uppercase" required autofocus></div>
+    <button class="btn btn-primary btn-lg btn-block">Show my order</button>
+  </form>
+</div>
+{% endblock %}

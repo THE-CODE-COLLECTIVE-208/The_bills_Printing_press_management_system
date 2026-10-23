@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_pill, pay_pill, csrf, timeline %}
+{% block title %}Order {{ order.queue_no|qno }}{% endblock %}
+{% block content %}
+{% set due = balance(order) %}
+{% set open = order.status not in ('Completed', 'Cancelled') %}
+<div class="page-head">
+  <div>
+    <p class="muted small" style="margin:0"><a href="{{ url_for('queue') }}">← Queue</a></p>
+    <h1>Order {{ order.queue_no|qno }} {{ status_pill(order.status) }}</h1>
+    <p class="muted" style="margin:0">{{ order.queue_date }} · {{ order.source }}{% if order.created_by_name %} by {{ order.created_by_name }}{% endif %} · tracking code <strong>{{ order.track_code }}</strong></p>
+  </div>
+  {% if open %}
+  <div class="actions">
+    {% set idx = STATUSES.index(order.status) %}
+    {% for st in STATUSES[idx + 1:] %}
+      <form method="post" action="{{ url_for('order_status', order_id=order.id) }}" class="inline-form">
+        {{ csrf() }}<input type="hidden" name="status" value="{{ st }}">
+        <button class="btn {{ 'btn-primary' if loop.first else '' }} {{ 'btn-success' if st == 'Completed' and loop.first }}"
+                {% if st == 'Completed' and due > 0.004 %}disabled title="Record payment first"{% endif %}>
+          {{ {'In Progress': 'Start processing', 'Ready': 'Mark ready', 'Completed': 'Complete & hand over'}[st] }}
+        </button>
+      </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid grid-2">
+  <div>
+    <div class="card">
+      <h2>Details</h2>
+      <dl class="dl">
+        <dt>Customer</dt><dd>{{ order.customer_name }}</dd>
+        <dt>Phone</dt><dd>{{ order.customer_phone or '—' }}</dd>
+        <dt>Service</dt><dd>{{ order.service_icon }} {{ order.service_name }}</dd>
+        <dt>Quantity</dt><dd>{{ order.quantity }} × {{ order.unit_price|money }}</dd>
+        <dt>Total</dt><dd><strong>{{ order.amount|money }}</strong></dd>
+        <dt>Paid</dt><dd>{{ order.paid|money }} {{ pay_pill(order) }}</dd>
+        {% if order.notes %}<dt>Notes</dt><dd>{{ order.notes }}</dd>{% endif %}
+      </dl>
+      {% if open %}
+      <details style="margin-top:1rem">
+        <summary class="btn btn-sm">Edit order</summary>
+        <form method="post" action="{{ url_for('order_edit', order_id=order.id) }}" style="margin-top:1rem">
+          {{ csrf() }}
+          <div class="row">
+            <div class="field"><label for="e-service">Service</label>
+              <select id="e-service" name="service_id">
+                {% for s in services %}<option value="{{ s.id }}" {{ 'selected' if s.id == order.service_id }}>{{ s.name }} ({{ s.unit_price|money }})</option>{% endfor %}
+              </select></div>
+            <div class="field" style="flex:0 1 120px"><label for="e-qty">Quantity</label>
+              <input type="number" id="e-qty" name="quantity" min="1" value="{{ order.quantity }}"></div>
+          </div>
+          <div class="field"><label for="e-notes">Notes</label>
+            <input type="text" id="e-notes" name="notes" value="{{ order.notes }}"></div>
+          <button class="btn btn-primary">Save changes</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Payments</h2>
+      {% if payments %}
+        <div class="table-wrap"><table>
+          <thead><tr><th>Time</th><th>Method</th><th>Received by</th><th class="right">Amount</th></tr></thead>
+          <tbody>{% for p in payments %}
+            <tr><td class="nowrap">{{ p.created_at[:16] }}</td><td>{{ p.method }}</td><td>{{ p.received_by_name or '—' }}</td><td class="right">{{ p.amount|money }}</td></tr>
+          {% endfor %}</tbody>
+        </table></div>
+      {% else %}<p class="muted">No payments yet.</p>{% endif %}
+      {% if due > 0.004 and order.status != 'Cancelled' %}
+        <hr class="divider">
+        <form method="post" action="{{ url_for('order_payment', order_id=order.id) }}">
+          {{ csrf() }}
+          <div class="row">
+            <div class="field"><label for="amount">Amount (balance {{ due|money }})</label>
+              <input type="number" id="amount" name="amount" step="0.01" min="0.01" max="{{ '%.2f'|format(due) }}" value="{{ '%.2f'|format(due) }}" required></div>
+            <div class="field"><label for="method">Method</label>
+              <select id="method" name="method">{% for m in PAYMENT_METHODS %}<option>{{ m }}</option>{% endfor %}</select></div>
+            <div class="field" style="flex:0 0 auto"><button class="btn btn-success">Record payment</button></div>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Progress</h2>
+      {{ timeline(order) }}
+      <a class="small" href="{{ url_for('track', code=order.track_code) }}" target="_blank">Customer tracking page ↗</a>
+    </div>
+    {% if history %}
+    <div class="card">
+      <h2>{{ order.customer_name.split()[0] }}'s previous orders</h2>
+      <div class="table-wrap"><table>
+        <tbody>{% for h in history %}
+          <tr class="clickable" onclick="location='{{ url_for('order_detail', order_id=h.id) }}'">
+            <td class="nowrap">{{ h.queue_date }}</td><td>{{ h.service_name }} × {{ h.quantity }}</td>
+            <td class="right">{{ h.amount|money }}</td><td>{{ status_pill(h.status) }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    </div>
+    {% endif %}
+    {% if user.role == 'manager' and open and order.paid == 0 %}
+    <div class="card">
+      <form method="post" action="{{ url_for('order_cancel', order_id=order.id) }}" onsubmit="return confirm('Cancel order {{ order.queue_no|qno }}?')">
+        {{ csrf() }}<button class="btn btn-danger btn-sm">Cancel this order</button>
+        <span class="hint">Managers only. Orders with payments can't be cancelled.</span>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

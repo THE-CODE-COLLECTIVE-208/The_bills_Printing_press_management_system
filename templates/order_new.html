@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}New order{% endblock %}
+{% block content %}
+<div class="card" style="max-width:780px;margin:0 auto">
+  
+  <h1>New order</h1>
+  <p class="muted">Type the phone number first. Returning customers are filled in automatically.</p>
+  <form method="post" id="order-form">
+    {{ csrf() }}
+    <div class="row">
+      <div class="field"><label for="phone">Phone number</label>
+        <input type="tel" id="phone" name="phone" value="{{ form.get('phone', '') }}" inputmode="tel" autofocus>
+        <div class="hint" id="phone-hint">Optional, but it lets you find this customer again.</div></div>
+      <div class="field"><label for="name">Customer name</label>
+        <input type="text" id="name" name="name" value="{{ form.get('name', '') }}" required></div>
+    </div>
+    <label>Service</label>
+    <div class="service-grid" role="radiogroup" aria-label="Service">
+      {% for s in services %}
+        <label class="service-option">
+          <input type="radio" name="service_id" value="{{ s.id }}" data-price="{{ s.unit_price }}"
+                 {{ 'checked' if form.get('service_id') == s.id|string or (not form.get('service_id') and loop.first) }} required>
+          <span><span class="ico" aria-hidden="true">{{ s.icon }}</span>{{ s.name }}<span class="price">{{ s.unit_price|money }}</span></span>
+        </label>
+      {% endfor %}
+    </div>
+    <div class="row">
+      <div class="field" style="flex:0 1 160px"><label for="quantity">Quantity</label>
+        <input type="number" id="quantity" name="quantity" min="1" step="1" value="{{ form.get('quantity', 1) }}" required></div>
+      <div class="field"><label for="notes">Notes</label>
+        <input type="text" id="notes" name="notes" value="{{ form.get('notes', '') }}" placeholder="e.g. A4, double-sided, file sent on WhatsApp"></div>
+    </div>
+    <div class="card" style="background:var(--bg);box-shadow:none;margin-bottom:1rem">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div><div class="muted small">Total</div><div style="font-size:1.6rem;font-weight:700" id="total">GH₵ 0.00</div></div>
+        <label class="check"><input type="checkbox" name="paid_now" value="1" id="paid_now" {{ 'checked' if form.get('paid_now') }}> Customer is paying now</label>
+        <div class="field" style="margin:0;flex:0 1 180px"><select name="method" aria-label="Payment method">
+          {% for m in PAYMENT_METHODS %}<option {{ 'selected' if form.get('method') == m }}>{{ m }}</option>{% endfor %}
+        </select></div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg btn-block">Save order</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById("order-form");
+  const qty = document.getElementById("quantity");
+  const total = document.getElementById("total");
+  const phone = document.getElementById("phone");
+  const name = document.getElementById("name");
+  const hint = document.getElementById("phone-hint");
+
+  function updateTotal() {
+    const s = form.querySelector("input[name=service_id]:checked");
+    const n = parseInt(qty.value, 10) || 0;
+    const v = s ? parseFloat(s.dataset.price) * n : 0;
+    total.textContent = "GH₵ " + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  form.addEventListener("input", updateTotal);
+  form.addEventListener("change", updateTotal);
+  updateTotal();
+
+  let timer;
+  phone.addEventListener("input", function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      if (phone.value.replace(/\D/g, "").length < 6) return;
+      fetch("{{ url_for('api_customer_lookup') }}?phone=" + encodeURIComponent(phone.value))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.found) {
+            if (!name.value) name.value = d.name;
+            hint.textContent = "Returning customer: " + d.name + " (" + d.orders + " previous order" + (d.orders === 1 ? "" : "s") + ").";
+          } else {
+            hint.textContent = "New customer.";
+          }
+        });
+    }, 350);
+  });
+})();
+</script>
+{% endblock %}

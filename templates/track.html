@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_macros.html" import timeline, status_pill %}
+{% block title %}Order {{ order.queue_no|qno }}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <div id="ready-banner" class="ready-banner" {% if order.status != 'Ready' %}hidden{% endif %}>
+    🎉 Your order is ready for collection! Please come to the counter.
+  </div>
+  <div class="card">
+    <div class="page-head" style="margin-bottom:.5rem">
+      <div>
+        <p class="muted small" style="margin:0">My order</p>
+        <h1>Queue No. {{ order.queue_no|qno }}</h1>
+      </div>
+      {{ status_pill(order.status) }}
+    </div>
+    <p style="margin:0"><strong>{{ order.service_icon }} {{ order.service_name }}</strong> · for {{ order.customer_name.split()[0] }}</p>
+    {% if order.status in ('Waiting', 'In Progress') %}
+      <p class="muted small" style="margin:.25rem 0 0">
+        {% if order.status == 'Waiting' %}{% if ahead == 0 %}You're next in line.{% else %}{{ ahead }} {{ 'order' if ahead == 1 else 'orders' }} ahead of you.{% endif %}
+        {% else %}We're working on your order now.{% endif %}
+      </p>
+    {% endif %}
+    {{ timeline(order) }}
+    {% if order.status in ('Waiting', 'In Progress') %}
+      <div class="no-print" id="notify-box">
+        <button class="btn btn-block" id="notify-btn" type="button">🔔 Notify me when it's ready</button>
+        <p class="hint" id="notify-hint">Keep this page open. It updates automatically.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if order.status not in ('Completed', 'Cancelled') %}
+<script>
+(function () {
+  const code = {{ order.track_code|tojson }};
+  const status = {{ order.status|tojson }};
+  const btn = document.getElementById("notify-btn") || document.createElement("button");
+  const hint = document.getElementById("notify-hint") || document.createElement("p");
+  const canNotify = "Notification" in window;
+
+  function showPermission() {
+    if (!canNotify) { btn.hidden = true; return; }
+    if (Notification.permission === "granted") {
+      btn.hidden = true;
+      hint.textContent = "Notifications are on. We'll alert you when your order is ready.";
+    } else if (Notification.permission === "denied") {
+      btn.hidden = true;
+      hint.textContent = "Notifications are blocked in your browser, but this page will still update.";
+    }
+  }
+  btn.addEventListener("click", function () {
+    if (canNotify) Notification.requestPermission().then(showPermission);
+  });
+  showPermission();
+
+  function alertReady(queueNo) {
+    const msg = "Your order is ready for collection! (Queue No. " + String(queueNo).padStart(3, "0") + ")";
+    if (canNotify && Notification.permission === "granted") {
+      try { new Notification("Printing Shop", { body: msg }); } catch (e) {}
+    }
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
+
+  setInterval(function () {
+    fetch("/api/track/" + encodeURIComponent(code))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.status !== status) {
+          if (d.status === "Ready") alertReady(d.queue_no);
+          setTimeout(function () { location.reload(); }, 400);
+        }
+      })
+      .catch(function () {});
+  }, 8000);
+})();
+</script>
+{% endif %}
+{% endblock %}

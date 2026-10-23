@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Welcome to the Printing Shop</h1>
+  <p class="muted">Join the queue, follow your order, or sign in to manage the shop.</p>
+</section>
+<div class="tiles">
+  <a class="tile" href="{{ url_for('checkin') }}">
+    <div class="icon">🙋</div><h2>Check in</h2>
+    <p>Choose a service and get a queue number</p>
+  </a>
+  <a class="tile" href="{{ url_for('track_lookup') }}">
+    <div class="icon">📍</div><h2>Track my order</h2>
+    <p>See your order status and get notified when it's ready</p>
+  </a>
+  <a class="tile" href="{{ user and url_for('queue') or url_for('login') }}">
+    <div class="icon">🧑‍💼</div><h2>Staff area</h2>
+    <p>Attendants and managers</p>
+  </a>
+</div>
+{% endblock %}

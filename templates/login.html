@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Staff login{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Staff login</h1>
+  <p class="muted">Attendants and managers sign in here.</p>
+  <form method="post">
+    {{ csrf() }}
+    <div class="field"><label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" required autofocus></div>
+    <div class="field"><label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required></div>
+    <button class="btn btn-primary btn-block btn-lg">Sign in</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_pill %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Sales dashboard</h1>
+    <p class="muted" style="margin:0">{% if start == end %}{{ 'Today' if start == today else start }}{% else %}{{ start }} to {{ end }}{% endif %}</p></div>
+  <form method="get" class="row" style="align-items:flex-end">
+    <div class="actions">
+      <a class="btn btn-sm" href="{{ url_for('dashboard') }}">Today</a>
+      <a class="btn btn-sm" href="{{ url_for('dashboard', start=week_ago, end=today) }}">Last 7 days</a>
+      <a class="btn btn-sm" href="{{ url_for('dashboard', start=month_start, end=today) }}">This month</a>
+    </div>
+    <input type="date" name="start" value="{{ start }}" aria-label="From" style="width:auto">
+    <input type="date" name="end" value="{{ end }}" aria-label="To" style="width:auto">
+    <button class="btn btn-sm btn-primary">Apply</button>
+  </form>
+</div>
+
+<div class="kpis">
+  <div class="card kpi"><div class="label">Money collected</div><div class="value">{{ collected.v|money }}</div><div class="sub">{{ collected.n }} payment{{ 's' if collected.n != 1 }}</div></div>
+  <div class="card kpi"><div class="label">Orders</div><div class="value">{{ order_stats.n }}</div><div class="sub">worth {{ order_stats.v|money }}</div></div>
+  <div class="card kpi"><div class="label">Orders still open</div><div class="value">{{ pending }}</div><div class="sub"><a href="{{ url_for('queue') }}">Open queue →</a></div></div>
+  <div class="card kpi"><div class="label">Unpaid balances</div><div class="value" style="color:{{ 'var(--danger)' if outstanding > 0 else 'inherit' }}">{{ outstanding|money }}</div><div class="sub">{{ unpaid|length }} order{{ 's' if unpaid|length != 1 }}, all dates</div></div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h2>Money collected, last 7 days</h2>
+    <div class="bar-chart" role="img" aria-label="Daily money collected">
+      {% for d in daily %}
+        <div class="col" title="{{ d.date }}: {{ d.value|money }}">
+          <span class="v">{{ '%.0f'|format(d.value) if d.value else '' }}</span>
+          <div class="colbar{{ ' today' if d.date == today }}" style="height:{{ (d.value / daily_max * 100)|round(1) }}%"></div>
+          <span class="lbl">{{ d.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <h2>Sales by service</h2>
+    {% for s in by_service %}
+      <div class="bar-row">
+        <span>{{ s.icon }} {{ s.name }}</span>
+        <div class="bar"><div style="width:{{ (s.value / service_max * 100)|round(1) }}%"></div></div>
+        <span class="nowrap small">{{ s.value|money }} <span class="muted">({{ s.n }})</span></span>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h2>Payment methods</h2>
+    {% if by_method %}
+    <table><tbody>{% for m in by_method %}
+      <tr><td>{{ m.method }}</td><td class="muted">{{ m.n }} payment{{ 's' if m.n != 1 }}</td><td class="right">{{ m.total|money }}</td></tr>
+    {% endfor %}</tbody></table>
+    {% else %}<p class="muted">No payments in this period.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Orders recorded by</h2>
+    {% if by_staff %}
+    <table><tbody>{% for s in by_staff %}
+      <tr><td>{{ s.name }}</td><td class="muted">{{ s.n }} order{{ 's' if s.n != 1 }}</td><td class="right">{{ s.value|money }}</td></tr>
+    {% endfor %}</tbody></table>
+    {% else %}<p class="muted">No orders in this period.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Unpaid orders</h2>
+    {% if unpaid %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>No.</th><th>Customer</th><th>Status</th><th class="right">Due</th></tr></thead>
+      <tbody>{% for o in unpaid[:10] %}
+        <tr class="clickable" onclick="location='{{ url_for('order_detail', order_id=o.id) }}'">
+          <td class="nowrap">{{ o.queue_date }}</td><td>{{ o.queue_no|qno }}</td><td>{{ o.customer_name }}</td>
+          <td>{{ status_pill(o.status) }}</td><td class="right nowrap">{{ balance(o)|money }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% if unpaid|length > 10 %}<p class="small muted">and {{ unpaid|length - 10 }} more.</p>{% endif %}
+    {% else %}<p class="muted">Every order is paid up. 👍</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Latest payments</h2>
+    {% if recent %}
+    <div class="table-wrap"><table>
+      <tbody>{% for p in recent %}
+        <tr class="clickable" onclick="location='{{ url_for('order_detail', order_id=p.oid) }}'">
+          <td class="nowrap small">{{ p.created_at[5:16] }}</td><td>{{ p.queue_no|qno }} · {{ p.customer_name }}</td>
+          <td class="small muted hide-sm">{{ p.method }}{% if p.received_by_name %} · {{ p.received_by_name }}{% endif %}</td>
+          <td class="right nowrap">{{ p.amount|money }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="muted">No payments yet.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

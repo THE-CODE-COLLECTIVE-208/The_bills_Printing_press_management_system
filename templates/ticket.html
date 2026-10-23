@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Your ticket{% endblock %}
+{% block content %}
+<div class="card narrow ticket">
+  <p class="muted" style="margin:0">Hello {{ order.customer_name.split()[0] }}, your queue number is</p>
+  <div class="big">{{ order.queue_no|qno }}</div>
+  <p><strong>{{ order.service_icon }} {{ order.service_name }}</strong></p>
+  <p class="muted">
+    {% if ahead == 0 %}You're next! Please go to the counter.
+    {% else %}{{ ahead }} {{ 'person' if ahead == 1 else 'people' }} ahead of you.{% endif %}
+  </p>
+  <hr class="divider">
+  <p class="small muted" style="margin-bottom:.35rem">Your tracking code</p>
+  <div class="code">{{ order.track_code }}</div>
+  <p class="small muted">Keep this code, or bookmark the tracking page, to check your order from your phone.</p>
+  <div class="actions no-print" style="justify-content:center">
+    <a class="btn btn-primary btn-lg" href="{{ url_for('track', code=order.track_code) }}">Track my order</a>
+    <button class="btn btn-lg" onclick="window.print()">Print ticket</button>
+  </div>
+</div>
+{% endblock %}

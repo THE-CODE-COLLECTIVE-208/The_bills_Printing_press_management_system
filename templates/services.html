@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Services{% endblock %}
+{% block content %}
+<link rel ="stylesheet" href="style.css">
+<div class="page-head"><div><h1>Services &amp; prices</h1>
+  <p class="muted" style="margin:0">Price changes apply to new orders. Existing orders keep the price they were made at.</p></div></div>
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Icon</th><th>Name</th><th>Price each (GH₵)</th><th>Offered</th><th></th></tr></thead>
+    <tbody>
+    {% for s in services %}
+      {% set f = 'svc-' ~ s.id %}
+      <tr>
+        <td style="width:80px"><input form="{{ f }}" type="text" name="icon" value="{{ s.icon }}" aria-label="Icon" maxlength="4"></td>
+        <td><input form="{{ f }}" type="text" name="name" value="{{ s.name }}" aria-label="Name" required></td>
+        <td style="width:150px"><input form="{{ f }}" type="number" name="unit_price" value="{{ '%.2f'|format(s.unit_price) }}" step="0.01" min="0" aria-label="Price" required></td>
+        <td><label class="check"><input form="{{ f }}" type="checkbox" name="active" value="1" {{ 'checked' if s.active }}> Yes</label></td>
+        <td class="right"><form method="post" id="{{ f }}" class="inline-form">{{ csrf() }}<input type="hidden" name="id" value="{{ s.id }}"><button class="btn btn-sm btn-primary">Save</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+<div class="card">
+  <h2>Add a service</h2>
+  <form method="post" class="row">
+    {{ csrf() }}
+    <div class="field" style="flex:0 1 90px"><label for="n-icon">Icon</label><input type="text" id="n-icon" name="icon" placeholder="🖨️" maxlength="4"></div>
+    <div class="field"><label for="n-name">Name</label><input type="text" id="n-name" name="name" placeholder="e.g. Passport photos" required></div>
+    <div class="field" style="flex:0 1 160px"><label for="n-price">Price each (GH₵)</label><input type="number" id="n-price" name="unit_price" step="0.01" min="0" required></div>
+    <div class="field" style="flex:0 0 auto"><button class="btn btn-primary">Add service</button></div>
+  </form>
+</div>
+{% endblock %}

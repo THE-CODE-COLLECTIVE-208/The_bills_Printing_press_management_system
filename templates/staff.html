@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% block title %}Staff{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Staff accounts</h1>
+  <p class="muted" style="margin:0">Attendants handle the queue, orders and payments. Managers can also see reports and change settings.</p></div></div>
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Reset password</th><th></th></tr></thead>
+    <tbody>{% for s in staff %}
+      <tr>
+        <td>{{ s.full_name }}{% if s.id == user.id %} <span class="muted small">(you)</span>{% endif %}</td>
+        <td>{{ s.username }}</td><td>{{ s.role|capitalize }}</td>
+        <td>{% if s.active %}<span class="pill pill-paid">Active</span>{% else %}<span class="pill pill-cancelled">Disabled</span>{% endif %}</td>
+        <td>
+          <form method="post" class="row" style="flex-wrap:nowrap;gap:.4rem">{{ csrf() }}
+            <input type="hidden" name="action" value="password"><input type="hidden" name="id" value="{{ s.id }}">
+            <input type="password" name="password" placeholder="New password" minlength="6" autocomplete="new-password" aria-label="New password for {{ s.full_name }}" style="min-width:140px" required>
+            <button class="btn btn-sm">Set</button>
+          </form>
+        </td>
+        <td class="right">{% if s.id != user.id %}
+          <form method="post" class="inline-form">{{ csrf() }}
+            <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ s.id }}">
+            <button class="btn btn-sm {{ 'btn-danger' if s.active }}">{{ 'Disable' if s.active else 'Enable' }}</button>
+          </form>{% endif %}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+<div class="card">
+  <h2>Add a staff member</h2>
+  <form method="post" class="row">
+    {{ csrf() }}<input type="hidden" name="action" value="add">
+    <div class="field"><label for="full_name">Full name</label><input type="text" id="full_name" name="full_name" required></div>
+    <div class="field"><label for="username">Username</label><input type="text" id="username" name="username" autocapitalize="none" pattern="[a-zA-Z0-9_.]{3,30}" required></div>
+    <div class="field"><label for="role">Role</label><select id="role" name="role"><option value="attendant">Attendant</option><option value="manager">Manager</option></select></div>
+    <div class="field"><label for="pw">Password</label><input type="password" id="pw" name="password" minlength="6" autocomplete="new-password" required></div>
+    <div class="field" style="flex:0 0 auto"><button class="btn btn-primary">Create account</button></div>
+  </form>
+</div>
+{% endblock %}

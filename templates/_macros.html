@@ -1,0 +1,38 @@
+{% macro status_pill(status) -%}
+  <span class="pill pill-{{ status|slug }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro pay_pill(order) -%}
+  {% set due = balance(order) %}
+  {% if order.status == 'Cancelled' %}<span class="muted small">—</span>
+  {% elif due <= 0.004 %}<span class="pill pill-paid">Paid</span>
+  {% else %}<span class="pill pill-due">{{ due|money }} due</span>{% endif %}
+{%- endmacro %}
+
+{% macro csrf() -%}
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro timeline(order) %}
+  {% set steps = [
+      ('Order received', order.created_at),
+      ('Being processed', order.processing_at),
+      ('Ready for collection', order.ready_at),
+      ('Completed', order.completed_at)] %}
+  {% set ns = namespace(done=0) %}
+  {% for s in steps %}{% if s[1] %}{% set ns.done = ns.done + 1 %}{% endif %}{% endfor %}
+  <ol class="timeline">
+    {% for label, ts in steps %}
+      {% set current = loop.index0 == ns.done and order.status != 'Cancelled' %}
+      <li class="{{ 'done' if ts }}{{ ' current' if current }}">
+        <span class="dot"></span>
+        <div class="t">{{ label }}</div>
+        <div class="muted small">
+          {% if ts %}{{ ts|hm }}{% if ts[:10] != order.created_at[:10] %} · {{ ts[:10] }}{% endif %}
+          {% elif current %}Up next{% else %}&nbsp;{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ol>
+  {% if order.status == 'Cancelled' %}<p class="pill pill-cancelled">Cancelled {{ order.cancelled_at|hm }}</p>{% endif %}
+{% endmacro %}
